@@ -32,6 +32,7 @@ interface AppState {
 
   setActiveProfile: (p: Profile | null) => void;
   addProfile: (p: Profile) => void;
+  removeProfile: (id: string) => void;
   setActiveTab: (t: TabKey) => void;
   setBaziData: (d: BaziData | null) => void;
   setZiweiData: (d: Record<string, unknown> | null) => void;
@@ -60,6 +61,11 @@ export const useAppStore = create<AppState>((set) => ({
     set({ activeProfile: p, baziData: null, ziweiData: null, astroData: null, sixyaoData: null, qimenData: null, predictData: null, error: null }),
   addProfile: (p) =>
     set((s) => ({ profiles: [...s.profiles, p], activeProfile: p })),
+  removeProfile: (id) =>
+    set((s) => ({
+      profiles: s.profiles.filter((p) => p.id !== id),
+      activeProfile: s.activeProfile?.id === id ? null : s.activeProfile,
+    })),
   setActiveTab: (t) => set({ activeTab: t }),
   setBaziData: (d) => set({ baziData: d }),
   setZiweiData: (d) => set({ ziweiData: d }),
