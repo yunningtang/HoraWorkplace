@@ -24,14 +24,14 @@ function getCurrentAge(birthDate: string): number {
 function StemBranchPair({ stem, branch, compact = false }: { stem: StemBranchCell; branch: StemBranchCell; compact?: boolean }) {
   const size = compact ? 18 : 22;
   return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
       <span style={{
         fontFamily: "var(--font-display)",
-        fontSize: size, fontWeight: 300, lineHeight: 1.1,
+        fontSize: size, fontWeight: 600, lineHeight: 1.1,
       }} className={elCls(stem.element)}>{stem.cell}</span>
       <span style={{
         fontFamily: "var(--font-display)",
-        fontSize: size, fontWeight: 300, lineHeight: 1.1,
+        fontSize: size, fontWeight: 600, lineHeight: 1.1,
       }} className={elCls(branch.element)}>{branch.cell}</span>
     </div>
   );
@@ -85,7 +85,7 @@ function LiunianRow({ dayun }: { dayun: Dayun }) {
               background: "var(--bg-base)",
               borderRadius: "var(--r-sm)",
               textAlign: "center",
-              boxShadow: "var(--shadow-outline)",
+              boxShadow: "var(--shadow-card)",
             }}>
               <div style={{ fontSize: 10, color: "var(--ink-disabled)", fontFamily: "var(--font-mono)" }}>
                 {year}
@@ -177,7 +177,7 @@ export default function DayunTimeline({ bazi, birthDate }: { bazi: BaziData; bir
                 color: isExpanded ? "var(--bg-base)" : "var(--ink-primary)",
                 border: "none",
                 borderRadius: "var(--r-md)",
-                boxShadow: isExpanded ? "0 2px 8px rgba(0,0,0,0.15)" : "var(--shadow-outline)",
+                boxShadow: isExpanded ? "0 2px 8px rgba(0,0,0,0.15)" : "var(--shadow-card)",
                 cursor: "pointer",
                 transition: "all 0.2s ease",
                 textAlign: "center",
@@ -197,11 +197,11 @@ export default function DayunTimeline({ bazi, birthDate }: { bazi: BaziData; bir
               <div style={{ margin: "4px 0" }}>
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
                   <span style={{
-                    fontFamily: "var(--font-display)", fontSize: 22, fontWeight: 300, lineHeight: 1.1,
+                    fontFamily: "var(--font-display)", fontSize: 22, fontWeight: 600, lineHeight: 1.1,
                     color: isExpanded ? "var(--bg-base)" : `var(--el-${EL_CLS[d.mainDirect.stem.element]?.replace("el-", "") ?? ""})`,
                   }}>{d.mainDirect.stem.cell}</span>
                   <span style={{
-                    fontFamily: "var(--font-display)", fontSize: 22, fontWeight: 300, lineHeight: 1.1,
+                    fontFamily: "var(--font-display)", fontSize: 22, fontWeight: 600, lineHeight: 1.1,
                     color: isExpanded ? "var(--bg-base)" : `var(--el-${EL_CLS[d.mainDirect.branch.element]?.replace("el-", "") ?? ""})`,
                   }}>{d.mainDirect.branch.cell}</span>
                 </div>

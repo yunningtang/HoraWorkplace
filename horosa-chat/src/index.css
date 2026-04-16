@@ -434,22 +434,22 @@ button {
 }
 .bazi-table th,
 .bazi-table td {
-  padding: 10px 16px;
+  padding: 12px 18px;
   border-bottom: 1px solid var(--line-subtle);
   vertical-align: middle;
 }
 .bazi-table thead th {
+  padding: 14px 18px;
   background: var(--bg-warm);
-  font-weight: 500;
+  font-weight: 600;
   font-size: 13px;
-  color: var(--ink-tertiary);
+  color: var(--ink-secondary);
   text-align: center;
-  letter-spacing: 0.6px;
-  text-transform: uppercase;
+  letter-spacing: 1.2px;
 }
 .bazi-table thead th.pillar-header-active {
   color: var(--ink-primary);
-  font-weight: 600;
+  font-weight: 700;
   background: linear-gradient(180deg, var(--bg-stone) 0%, var(--bg-warm) 100%);
 }
 .bazi-table thead th:first-child {
@@ -487,25 +487,27 @@ button {
 
 .cell-gan, .cell-zhi {
   font-family: var(--font-display);
-  font-size: 34px;
-  font-weight: 300;
-  line-height: 1.2;
+  font-size: 38px;
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: 1px;
 }
 .cell-shishen {
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
   letter-spacing: 0.4px;
 }
 .cell-canggan {
   font-family: var(--font-display);
-  font-size: 15px;
-  font-weight: 400;
+  font-size: 16px;
+  font-weight: 500;
   line-height: 1.9;
 }
 .cell-naying {
   font-family: var(--font-display);
-  font-size: 13px;
-  font-weight: 400;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.3px;
 }
 .cell-gods {
   font-size: 11px;

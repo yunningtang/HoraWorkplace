@@ -160,7 +160,7 @@ export default function LocationStep({
                   padding: "10px 8px", textAlign: "center",
                   background: "var(--bg-base)", border: "none",
                   borderRadius: "var(--r-md)",
-                  boxShadow: "var(--shadow-outline)",
+                  boxShadow: "var(--shadow-card)",
                   cursor: "pointer", transition: "all 0.15s ease",
                 }}
                 onMouseEnter={(e) => {

@@ -6,10 +6,6 @@ const CN = { year: "年柱", month: "月柱", day: "日柱", time: "时柱" };
 const EL: Record<string, string> = {
   Metal: "el-metal", Wood: "el-wood", Water: "el-water", Fire: "el-fire", Earth: "el-earth",
 };
-const EL_CN: Record<string, string> = {
-  Metal: "金", Wood: "木", Water: "水", Fire: "火", Earth: "土",
-};
-
 function c(el: string) { return EL[el] ?? ""; }
 
 /* ── Interactions ── */
@@ -192,10 +188,10 @@ export default function BaziBoard({ data }: { data: BaziData }) {
               {pillars.map((p, i) => (
                 <td key={i} className="cell-canggan">
                   {p.stemInBranch?.map((s, j) => (
-                    <div key={j}>
-                      <span className={c(s.element)} style={{ fontWeight: 400 }}>{s.cell}</span>
-                      <span style={{ color: "var(--ink-disabled)", fontSize: 11, marginLeft: 3 }}>
-                        {EL_CN[s.element]}
+                    <div key={j} style={{ display: "flex", alignItems: "baseline", justifyContent: "center", gap: 4 }}>
+                      <span className={c(s.element)} style={{ fontWeight: 600, fontSize: 17 }}>{s.cell}</span>
+                      <span style={{ color: "var(--ink-tertiary)", fontSize: 11 }}>
+                        {s.relative}
                       </span>
                     </div>
                   ))}
@@ -207,8 +203,10 @@ export default function BaziBoard({ data }: { data: BaziData }) {
             <tr>
               <th>副星</th>
               {pillars.map((p, i) => (
-                <td key={i} style={{ fontSize: 13, color: "var(--ink-tertiary)", lineHeight: 2 }}>
-                  {p.stemInBranch?.map((s, j) => <div key={j}>{s.relative}</div>)}
+                <td key={i} style={{ fontSize: 12, color: "var(--ink-tertiary)", lineHeight: 1.9 }}>
+                  {p.stemInBranch?.map((s, j) => (
+                    <div key={j} style={{ letterSpacing: 0.3 }}>{s.relative}</div>
+                  ))}
                 </td>
               ))}
             </tr>
