@@ -6,7 +6,7 @@ export type ZhuLabel = "年" | "月" | "日" | "时";
 
 export interface BaziBirthResponse {
   ok: boolean;
-  tool: "bazi_birth";
+  tool: string;
   version: string;
   data: {
     bazi: BaziData;
@@ -18,6 +18,10 @@ export interface BaziBirthResponse {
   error: null | { code: string; message: string };
 }
 
+/**
+ * BaZi main payload — works for both bazi_birth and bazi_direct.
+ * bazi_direct adds: direction[], smallDirection[], directAge, directTime, gender
+ */
 export interface BaziData {
   timeOffset: number;
   nongli: Nongli;
@@ -33,6 +37,14 @@ export interface BaziData {
   ziPo: Record<string, GanZhiRef[]>;
   ganCong: Record<string, GanZhiRef[]>;
   ziCuan: Record<string, GanZhiRef[]>;
+
+  // bazi_direct extras
+  gender?: "Male" | "Female";
+  directAge?: number;        // e.g. 7.36 (起运岁数, fractional)
+  directTime?: string;       // e.g. "1997-10-27 14:07:24"
+  directTimeJdn?: number;
+  direction?: Dayun[];        // 9 decennial periods
+  smallDirection?: SmallDirection[]; // year-by-year pillars from birth
 }
 
 export interface Nongli {
@@ -64,8 +76,8 @@ export interface Pillar {
   nayingElement: string;
   ganziPhase: string;
   nayingPhase: string;
-  zhu: ZhuLabel;
-  xunEmpty: string;
+  zhu: ZhuLabel | null;
+  xunEmpty: string | null;
 }
 
 export interface StemBranchCell {
@@ -76,12 +88,28 @@ export interface StemBranchCell {
   goodGods: string[];
   badGods: string[];
   neutralGods: string[];
-  taisuiGods: string[];
+  taisuiGods: string[];  // extra — 太岁神煞
 }
 
 export interface GanZhiRef {
   zhu: ZhuLabel;
   cell: string;
+}
+
+/** 大运 — one 10-year period */
+export interface Dayun {
+  age: number;              // start age of this period (7, 17, 27, ...)
+  startYear: number;        // calendar year
+  mainDirect: Pillar;       // the dayun pillar itself (干支/纳音/神煞)
+  subDirect: Pillar[];      // 10 流年 pillars within this dayun
+}
+
+/** 小运 / liunian from birth — separate array */
+export interface SmallDirection {
+  age: number;
+  year: number;
+  direct: Pillar;           // 小运 pillar
+  yearGanzi: Pillar;        // calendar 流年 pillar
 }
 
 export interface ExportBundle {
@@ -95,11 +123,11 @@ export interface ExportSection {
 }
 
 export const ELEMENT_COLORS: Record<string, string> = {
-  Metal: "var(--color-metal)",
-  Wood: "var(--color-wood)",
-  Water: "var(--color-water)",
-  Fire: "var(--color-fire)",
-  Earth: "var(--color-earth)",
+  Metal: "var(--el-metal)",
+  Wood: "var(--el-wood)",
+  Water: "var(--el-water)",
+  Fire: "var(--el-fire)",
+  Earth: "var(--el-earth)",
 };
 
 export const ELEMENT_CN: Record<string, string> = {

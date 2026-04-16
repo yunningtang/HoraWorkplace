@@ -10,16 +10,14 @@ import ZiweiBoard from "./components/charts/ZiweiBoard";
 import AstroChart from "./components/charts/AstroChart";
 import SixYaoView from "./components/charts/SixYaoView";
 import QimenGrid from "./components/charts/QimenGrid";
-import DecennialTimeline from "./components/charts/DecennialTimeline";
 import type { BaziBirthResponse, BaziData } from "./types/horosa";
 
 const TABS: { key: TabKey; label: string; tool: string; btnLabel: string }[] = [
-  { key: "bazi", label: "八字", tool: "horosa_cn_bazi_birth", btnLabel: "排八字" },
+  { key: "bazi", label: "八字", tool: "horosa_cn_bazi_direct", btnLabel: "排八字" },
   { key: "ziwei", label: "紫微", tool: "horosa_cn_ziwei_birth", btnLabel: "排紫微" },
   { key: "astro", label: "西占", tool: "horosa_astro_chart", btnLabel: "排星盘" },
   { key: "sixyao", label: "六爻", tool: "horosa_cn_sixyao", btnLabel: "起卦" },
   { key: "qimen", label: "奇门", tool: "horosa_cn_qimen", btnLabel: "排奇门" },
-  { key: "predict", label: "大运", tool: "horosa_predict_decennials", btnLabel: "排大运" },
 ];
 
 function ErrorToast() {
@@ -104,13 +102,16 @@ function App() {
     store.setError(null);
 
     try {
-      const result = await callTool(tabDef.tool, {
+      const needsGender = tab === "bazi" || tab === "ziwei";
+      const args: Record<string, unknown> = {
         date: activeProfile.birthDate,
         time: activeProfile.birthTime,
         zone: activeProfile.zone,
         lat: activeProfile.lat,
         lon: activeProfile.lon,
-      });
+      };
+      if (needsGender) args.gender = activeProfile.gender === "M";
+      const result = await callTool(tabDef.tool, args);
       const typed = result as Record<string, unknown>;
 
       if (typed.ok === false) {
@@ -148,7 +149,6 @@ function App() {
       case "astro": return <AstroChart data={cachedData as Record<string, unknown>} />;
       case "sixyao": return <SixYaoView data={cachedData as Record<string, unknown>} />;
       case "qimen": return <QimenGrid data={cachedData as Record<string, unknown>} />;
-      case "predict": return <DecennialTimeline data={cachedData as Record<string, unknown>} />;
     }
   }
 

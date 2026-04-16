@@ -23,7 +23,7 @@ export interface Profile {
   updatedAt: number;
 }
 
-export type ChartKind = "bazi" | "ziwei" | "astro" | "sixyao" | "qimen" | "predict";
+export type ChartKind = "bazi" | "ziwei" | "astro" | "sixyao" | "qimen";
 
 export interface ChartRecord {
   id?: number;          // auto-increment

@@ -82,7 +82,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const profiles = await listProfiles();
     const activeProfileId = (await getSetting("activeProfileId")) ?? null;
     const activeTabRaw = (await getSetting("activeTab")) ?? "bazi";
-    const validTabs: TabKey[] = ["bazi", "ziwei", "astro", "sixyao", "qimen", "predict"];
+    const validTabs: TabKey[] = ["bazi", "ziwei", "astro", "sixyao", "qimen"];
     const activeTab = (validTabs.includes(activeTabRaw as TabKey) ? activeTabRaw : "bazi") as TabKey;
 
     // Preload chart cache for active profile, all tabs
@@ -115,7 +115,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     await setSetting("activeProfileId", p.id);
 
     // Preload cache for newly-active profile
-    const validTabs: TabKey[] = ["bazi", "ziwei", "astro", "sixyao", "qimen", "predict"];
+    const validTabs: TabKey[] = ["bazi", "ziwei", "astro", "sixyao", "qimen"];
     const cache: ChartCache = { ...get().chartCache };
     for (const kind of validTabs) {
       const rec = await getChart(p.id, kind);
@@ -149,7 +149,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (id) {
       // Preload cache for this profile if not already loaded
       const cache: ChartCache = { ...get().chartCache };
-      const validTabs: TabKey[] = ["bazi", "ziwei", "astro", "sixyao", "qimen", "predict"];
+      const validTabs: TabKey[] = ["bazi", "ziwei", "astro", "sixyao", "qimen"];
       for (const kind of validTabs) {
         const key = ck(id, kind);
         if (cache[key] === undefined) {

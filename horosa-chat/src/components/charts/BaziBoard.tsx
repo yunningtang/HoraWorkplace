@@ -1,4 +1,5 @@
-import type { BaziData, PillarKey, StemBranchCell } from "../../types/horosa";
+import type { BaziData, PillarKey } from "../../types/horosa";
+import DayunTimeline from "./DayunTimeline";
 
 const KEYS: PillarKey[] = ["year", "month", "day", "time"];
 const CN = { year: "年柱", month: "月柱", day: "日柱", time: "时柱" };
@@ -19,7 +20,7 @@ function Interactions({ data }: { data: BaziData }) {
   function collect(keys: { key: string; label: string }[], prefix: string) {
     const items: string[] = [];
     for (const { key, label } of keys) {
-      const obj = (data as Record<string, Record<string, Ref[]>>)[key];
+      const obj = (data as unknown as Record<string, Record<string, Ref[]>>)[key];
       if (!obj) continue;
       for (const [, refs] of Object.entries(obj)) {
         if (refs.length >= 2) items.push(refs.map((r) => r.cell).join("") + label);
@@ -234,28 +235,76 @@ export default function BaziBoard({ data }: { data: BaziData }) {
               ))}
             </tr>
 
-            {/* 神煞 */}
+            {/* 神煞 — pulled from .branch where the real shensha live */}
             <tr>
               <th>神煞</th>
-              {pillars.map((p, i) => (
-                <td key={i} className="cell-gods">
-                  {(p.goodGods ?? []).map((g, j) => (
-                    <span key={`g${j}`}>{j > 0 && " "}<span style={{ color: "var(--el-wood)" }}>{g}</span></span>
-                  ))}
-                  {(p.badGods ?? []).map((g, j) => (
-                    <span key={`b${j}`}>{" "}<span style={{ color: "var(--el-fire)" }}>{g}</span></span>
-                  ))}
-                  {(p.neutralGods ?? []).map((g, j) => (
-                    <span key={`n${j}`}>{" "}<span style={{ color: "var(--ink-tertiary)" }}>{g}</span></span>
-                  ))}
-                </td>
-              ))}
+              {pillars.map((p, i) => {
+                const good = p.branch.goodGods ?? [];
+                const bad = p.branch.badGods ?? [];
+                const neutral = p.branch.neutralGods ?? [];
+                const taisui = p.branch.taisuiGods ?? [];
+                return (
+                  <td key={i} className="cell-gods" style={{ verticalAlign: "top" }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 3, alignItems: "center" }}>
+                      {good.length > 0 && (
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 3, justifyContent: "center" }}>
+                          {good.map((g, j) => (
+                            <span key={j} style={{
+                              fontSize: 10, padding: "1px 6px",
+                              borderRadius: "var(--r-pill)",
+                              background: "var(--el-wood-bg)", color: "var(--el-wood)",
+                              whiteSpace: "nowrap",
+                            }}>{g}</span>
+                          ))}
+                        </div>
+                      )}
+                      {bad.length > 0 && (
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 3, justifyContent: "center" }}>
+                          {bad.map((g, j) => (
+                            <span key={j} style={{
+                              fontSize: 10, padding: "1px 6px",
+                              borderRadius: "var(--r-pill)",
+                              background: "var(--el-fire-bg)", color: "var(--el-fire)",
+                              whiteSpace: "nowrap",
+                            }}>{g}</span>
+                          ))}
+                        </div>
+                      )}
+                      {neutral.length > 0 && (
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 3, justifyContent: "center" }}>
+                          {neutral.map((g, j) => (
+                            <span key={j} style={{
+                              fontSize: 10, padding: "1px 6px",
+                              borderRadius: "var(--r-pill)",
+                              background: "var(--bg-warm)", color: "var(--ink-tertiary)",
+                              whiteSpace: "nowrap",
+                            }}>{g}</span>
+                          ))}
+                        </div>
+                      )}
+                      {taisui.length > 0 && (
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 3, justifyContent: "center", borderTop: "1px dashed var(--line-subtle)", paddingTop: 3, marginTop: 2 }}>
+                          {taisui.map((g, j) => (
+                            <span key={j} style={{
+                              fontSize: 10, padding: "1px 6px",
+                              borderRadius: "var(--r-pill)",
+                              background: "rgba(164,148,204,0.12)", color: "#7866a8",
+                              whiteSpace: "nowrap",
+                            }} title="太岁神煞">{g}</span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </td>
+                );
+              })}
             </tr>
           </tbody>
         </table>
       </div>
 
       <Interactions data={data} />
+      <DayunTimeline bazi={data} birthDate={data.nongli?.birth?.slice(0, 10) ?? ""} />
       <Sanyuan data={data} />
       <Season season={data.season} />
     </div>
