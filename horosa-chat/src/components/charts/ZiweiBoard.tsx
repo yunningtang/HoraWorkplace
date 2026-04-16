@@ -70,7 +70,7 @@ function PalaceCell({ house }: { house: House }) {
       padding: "6px 8px", height: "100%",
       display: "flex", flexDirection: "column",
       background: house.isLife ? "rgba(0,0,0,0.03)" : "transparent",
-      borderLeft: house.isLife ? "2px solid var(--ink-primary)" : undefined,
+      boxShadow: house.isLife ? "inset 0 0 0 1px rgba(0,0,0,0.1)" : undefined,
     }}>
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
         <span style={{ fontSize: 11, fontWeight: 600, color: house.isLife ? "var(--ink-primary)" : "var(--ink-secondary)" }}>

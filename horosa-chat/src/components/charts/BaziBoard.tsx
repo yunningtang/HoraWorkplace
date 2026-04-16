@@ -145,7 +145,11 @@ export default function BaziBoard({ data }: { data: BaziData }) {
           <thead>
             <tr>
               <th></th>
-              {KEYS.map((k) => <th key={k}>{CN[k]}</th>)}
+              {KEYS.map((k, i) => (
+                <th key={k} className={i === 2 ? "pillar-header-active" : undefined}>
+                  {CN[k]}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>

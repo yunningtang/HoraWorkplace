@@ -5,35 +5,26 @@ export default function ConfirmDeleteModal() {
   if (!pendingDelete) return null;
 
   return (
-    <div
-      onClick={cancelDelete}
-      style={{
-        position: "fixed", inset: 0, zIndex: 100,
-        background: "rgba(0,0,0,0.3)",
-        backdropFilter: "blur(4px)",
-        display: "flex", alignItems: "center", justifyContent: "center",
-      }}
-    >
+    <div className="overlay" onClick={cancelDelete}>
       <div
+        className="modal"
         onClick={(e) => e.stopPropagation()}
-        style={{
-          background: "var(--bg-base)",
-          borderRadius: "var(--r-lg)",
-          padding: 24,
-          width: 360, maxWidth: "90vw",
-          boxShadow: "0 20px 40px rgba(0,0,0,0.15)",
-        }}
+        style={{ width: 380, padding: 28 }}
       >
         <div style={{
-          fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 500,
-          color: "var(--ink-primary)", marginBottom: 12,
+          fontFamily: "var(--font-display)", fontSize: 20, fontWeight: 400,
+          color: "var(--ink-primary)", marginBottom: 14, letterSpacing: 0.3,
         }}>
           删除档案
         </div>
-        <div style={{ fontSize: 14, color: "var(--ink-secondary)", lineHeight: 1.6, marginBottom: 20 }}>
-          确定要删除档案 <span style={{ fontWeight: 600, color: "var(--ink-primary)" }}>「{pendingDelete.name}」</span> 吗?
+        <div style={{ fontSize: 14, color: "var(--ink-secondary)", lineHeight: 1.7, marginBottom: 24 }}>
+          确定要删除档案{" "}
+          <span style={{ fontWeight: 600, color: "var(--ink-primary)" }}>「{pendingDelete.name}」</span>{" "}
+          吗?
           <br />
-          该档案下的所有命盘数据(八字/紫微/西占/六爻/奇门/大运)也会一并删除,无法恢复。
+          <span style={{ fontSize: 12, color: "var(--ink-tertiary)" }}>
+            该档案下的所有命盘数据(八字/紫微/西占/六爻/奇门)也会一并删除,无法恢复。
+          </span>
         </div>
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
           <button
@@ -42,8 +33,11 @@ export default function ConfirmDeleteModal() {
               padding: "8px 18px", fontSize: 14, fontWeight: 500,
               color: "var(--ink-secondary)", background: "var(--bg-warm)",
               border: "none", borderRadius: "var(--r-pill)",
-              cursor: "pointer", transition: "opacity 0.15s",
+              cursor: "pointer",
+              transition: "all var(--dur-fast) var(--ease-out)",
             }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = "var(--line-subtle)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "var(--bg-warm)"; }}
           >
             取消
           </button>
@@ -53,8 +47,11 @@ export default function ConfirmDeleteModal() {
               padding: "8px 18px", fontSize: 14, fontWeight: 500,
               color: "#fff", background: "var(--el-fire)",
               border: "none", borderRadius: "var(--r-pill)",
-              cursor: "pointer", transition: "opacity 0.15s",
+              cursor: "pointer",
+              transition: "all var(--dur-fast) var(--ease-out)",
             }}
+            onMouseEnter={(e) => { e.currentTarget.style.filter = "brightness(0.92)"; e.currentTarget.style.transform = "translateY(-1px)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.filter = "none"; e.currentTarget.style.transform = "none"; }}
           >
             删除
           </button>

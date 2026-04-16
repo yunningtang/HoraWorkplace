@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useAppStore, useActiveProfile, useCachedChart, type TabKey } from "./stores/appStore";
 import { callTool } from "./lib/mcp";
 import ProfileForm from "./components/profile/ProfileForm";
@@ -30,39 +30,57 @@ function ErrorToast() {
   }, [error, setError]);
   if (!error) return null;
   return (
-    <div style={{
-      position: "fixed", top: 20, right: 20, zIndex: 50,
-      padding: "12px 18px", maxWidth: 380,
-      background: "var(--bg-base)", borderRadius: "var(--r-md)",
-      boxShadow: "0 4px 20px rgba(0,0,0,0.1), 0 0 0 1px var(--el-fire)",
-      fontSize: 13, color: "var(--ink-primary)",
-      display: "flex", alignItems: "flex-start", gap: 10,
-      animation: "toast-in 0.2s ease",
-    }}>
-      <span style={{ color: "var(--el-fire)", fontSize: 16, lineHeight: 1 }}>!</span>
+    <div className="toast">
+      <div style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--el-fire)", marginTop: 6, flexShrink: 0 }} />
       <div style={{ flex: 1 }}>
         <div style={{ fontWeight: 500, marginBottom: 2 }}>调用失败</div>
-        <div style={{ color: "var(--ink-tertiary)", fontSize: 12 }}>{error}</div>
+        <div style={{ color: "var(--ink-tertiary)", fontSize: 12, lineHeight: 1.5 }}>{error}</div>
       </div>
-      <button onClick={() => setError(null)} style={{
-        border: "none", background: "transparent", cursor: "pointer",
-        color: "var(--ink-disabled)", fontSize: 14, padding: 0, lineHeight: 1,
-      }}>×</button>
+      <button onClick={() => setError(null)} className="icon-btn" style={{ width: 22, height: 22 }} aria-label="关闭">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </button>
     </div>
   );
 }
 
-function LoadingSkeleton() {
+function Skeleton() {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16, padding: 8 }}>
-      {[180, 120, 200].map((h, i) => (
-        <div key={i} style={{
-          height: h, background: "var(--bg-warm)",
-          borderRadius: "var(--r-md)",
-          animation: `pulse 1.5s ease-in-out infinite ${i * 0.15}s`,
-        }} />
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div className="skeleton" style={{ height: 80 }} />
+      <div className="skeleton" style={{ height: 240 }} />
+      <div className="skeleton" style={{ height: 120 }} />
+    </div>
+  );
+}
+
+function TabBar({ activeTab, onChange }: { activeTab: TabKey; onChange: (t: TabKey) => void }) {
+  const barRef = useRef<HTMLDivElement>(null);
+  const [underline, setUnderline] = useState<{ left: number; width: number }>({ left: 0, width: 0 });
+
+  useLayoutEffect(() => {
+    if (!barRef.current) return;
+    const activeEl = barRef.current.querySelector<HTMLButtonElement>(`.tab.active`);
+    if (activeEl) {
+      const rect = activeEl.getBoundingClientRect();
+      const parentRect = barRef.current.getBoundingClientRect();
+      setUnderline({ left: rect.left - parentRect.left, width: rect.width });
+    }
+  }, [activeTab]);
+
+  return (
+    <div ref={barRef} className="tabbar">
+      {TABS.map((tab) => (
+        <button
+          key={tab.key}
+          onClick={() => onChange(tab.key)}
+          className={`tab ${tab.key === activeTab ? "active" : ""}`}
+        >
+          {tab.label}
+        </button>
       ))}
-      <style>{`@keyframes pulse { 0%,100% { opacity: 0.6 } 50% { opacity: 1 } }`}</style>
+      <div className="tab-underline" style={{ left: underline.left, width: underline.width }} />
     </div>
   );
 }
@@ -77,13 +95,9 @@ function App() {
   const cachedData = useCachedChart(activeProfile?.id ?? null, activeTab);
   const [fetchAttempted, setFetchAttempted] = useState<Record<string, boolean>>({});
 
-  // Hydrate store from IndexedDB on mount
-  useEffect(() => {
-    store.hydrate();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  useEffect(() => { store.hydrate(); /* eslint-disable-line react-hooks/exhaustive-deps */ }, []);
 
-  // Auto-fetch: when active profile+tab has no cached data and we haven't tried yet
+  // Auto-fetch on tab/profile change when no cached data
   useEffect(() => {
     if (!activeProfile || !hydrated) return;
     const key = `${activeProfile.id}:${activeTab}`;
@@ -92,6 +106,23 @@ function App() {
     setFetchAttempted((s) => ({ ...s, [key]: true }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeProfile?.id, activeTab, cachedData, hydrated]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === "n") {
+        e.preventDefault();
+        store.openNewProfile();
+      }
+      if (e.key === "Escape") {
+        if (profileDraft) store.closeProfileDraft();
+        else if (store.pendingDelete) store.cancelDelete();
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profileDraft, store.pendingDelete]);
 
   async function runTool(tab: TabKey) {
     if (!activeProfile) return;
@@ -125,9 +156,7 @@ function App() {
       if (tab === "bazi") {
         payload = (typed as unknown as BaziBirthResponse).data?.bazi ?? null;
       }
-      if (payload) {
-        await store.setChart(activeProfile.id, tab, payload);
-      }
+      if (payload) await store.setChart(activeProfile.id, tab, payload);
     } catch (e) {
       store.setError(e instanceof Error ? e.message : "未知错误");
     } finally {
@@ -157,8 +186,11 @@ function App() {
 
   if (!hydrated) {
     return (
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", color: "var(--ink-disabled)", fontSize: 13 }}>
-        加载中...
+      <div style={{
+        display: "flex", alignItems: "center", justifyContent: "center",
+        height: "100vh", color: "var(--ink-disabled)", fontSize: 13,
+      }}>
+        <div className="loading-dots"><span /><span /><span /></div>
       </div>
     );
   }
@@ -166,12 +198,12 @@ function App() {
   return (
     <>
       <div className="layout">
-        {/* ═══ Sidebar ═══ */}
+        {/* Sidebar */}
         <aside className="sidebar">
           <div className="sidebar-brand">
             <div style={{
-              fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 300,
-              color: "var(--ink-primary)", letterSpacing: 2, lineHeight: 1.2,
+              fontFamily: "var(--font-display)", fontSize: 19, fontWeight: 300,
+              color: "var(--ink-primary)", letterSpacing: 1.8, lineHeight: 1.2,
             }}>
               命理工作台
             </div>
@@ -183,88 +215,65 @@ function App() {
           <ProfileManager />
 
           <div style={{ flex: 1 }} />
-          <div style={{ padding: "8px 24px", borderTop: "1px solid var(--line-subtle)" }}>
-            <div style={{ fontSize: 10, color: "var(--ink-disabled)", letterSpacing: 0.5 }}>v0.3.0 · local</div>
+          <div style={{ padding: "10px 20px 0", borderTop: "1px solid var(--line-subtle)" }}>
+            <div style={{ fontSize: 10, color: "var(--ink-disabled)", letterSpacing: 0.5 }}>v0.4.0 · local</div>
           </div>
         </aside>
 
-        {/* ═══ Main ═══ */}
+        {/* Main */}
         <div className="main-area">
           {activeProfile ? (
             <>
               {/* Profile strip */}
               <div style={{
-                padding: "16px 28px",
+                padding: "18px 32px",
+                display: "flex", alignItems: "center", gap: 16,
                 borderBottom: "1px solid var(--line-subtle)",
                 background: "var(--bg-base)",
-                display: "flex", alignItems: "center", gap: 16,
               }}>
                 <div style={{
                   width: 40, height: 40, borderRadius: "50%",
                   background: "var(--ink-primary)", color: "var(--bg-base)",
                   display: "flex", alignItems: "center", justifyContent: "center",
                   fontSize: 16, fontWeight: 600, fontFamily: "var(--font-display)",
+                  flexShrink: 0,
                 }}>
                   {activeProfile.name.slice(0, 1)}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 16, fontWeight: 600, color: "var(--ink-primary)" }}>
+                  <div style={{ fontSize: 16, fontWeight: 600, color: "var(--ink-primary)", letterSpacing: 0.2 }}>
                     {activeProfile.name}
-                    <span style={{ marginLeft: 8, fontSize: 12, color: "var(--ink-disabled)", fontWeight: 400 }}>
+                    <span style={{ marginLeft: 10, fontSize: 12, color: "var(--ink-disabled)", fontWeight: 400 }}>
                       {activeProfile.gender === "M" ? "♂ 男" : activeProfile.gender === "F" ? "♀ 女" : "⚥"}
                     </span>
                   </div>
-                  <div style={{ fontSize: 12, color: "var(--ink-tertiary)", marginTop: 2, fontFamily: "var(--font-mono)", letterSpacing: 0.3 }}>
+                  <div style={{
+                    fontSize: 12, color: "var(--ink-tertiary)", marginTop: 3,
+                    fontFamily: "var(--font-mono)", letterSpacing: 0.3,
+                  }}>
                     {activeProfile.birthDate} {activeProfile.birthTime} · {activeProfile.location} · UTC{Number(activeProfile.zone) >= 0 ? "+" : ""}{activeProfile.zone}
                   </div>
                 </div>
               </div>
 
               {/* Tab bar */}
-              <div style={{
-                padding: "0 28px",
-                borderBottom: "1px solid var(--line-subtle)",
-                background: "var(--bg-warm)",
-                display: "flex", alignItems: "center", gap: 0,
-                position: "relative",
-              }}>
-                {TABS.map((tab) => {
-                  const isActive = tab.key === activeTab;
-                  return (
-                    <button
-                      key={tab.key}
-                      onClick={() => store.setActiveTab(tab.key)}
-                      style={{
-                        padding: "12px 20px",
-                        fontSize: 14, fontWeight: isActive ? 600 : 400,
-                        color: isActive ? "var(--ink-primary)" : "var(--ink-tertiary)",
-                        background: "transparent",
-                        border: "none", cursor: "pointer",
-                        position: "relative",
-                        transition: "color 0.15s",
-                      }}
-                    >
-                      {tab.label}
-                      {isActive && (
-                        <div style={{
-                          position: "absolute", bottom: -1, left: "20%", right: "20%",
-                          height: 2, background: "var(--ink-primary)",
-                        }} />
-                      )}
-                    </button>
-                  );
-                })}
-                <div style={{ flex: 1 }} />
+              <div style={{ position: "relative", display: "flex", alignItems: "center", borderBottom: "1px solid var(--line-subtle)" }}>
+                <div style={{ flex: 1 }}>
+                  <TabBar activeTab={activeTab} onChange={store.setActiveTab} />
+                </div>
                 {cachedData && !loading && (
                   <button
                     onClick={() => runTool(activeTab)}
+                    className="btn-ghost"
                     style={{
-                      padding: "4px 12px", fontSize: 12, fontWeight: 500,
+                      marginRight: 20, padding: "4px 10px", fontSize: 12,
                       color: "var(--ink-tertiary)", background: "transparent",
-                      border: "none", cursor: "pointer",
+                      border: "none", cursor: "pointer", borderRadius: "var(--r-sm)",
+                      transition: "all var(--dur-fast) var(--ease-out)",
+                      fontWeight: 500,
                     }}
-                    onMouseEnter={(e) => { e.currentTarget.style.color = "var(--ink-primary)"; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.color = "var(--ink-tertiary)"; }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-hover)"; e.currentTarget.style.color = "var(--ink-primary)"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--ink-tertiary)"; }}
                     title="重新排盘"
                   >
                     ↻ 刷新
@@ -275,25 +284,24 @@ function App() {
               {/* Content */}
               <div className="content-area">
                 {loading ? (
-                  <LoadingSkeleton />
+                  <Skeleton />
                 ) : cachedData ? (
-                  renderChart()
+                  <div key={`${activeProfile.id}:${activeTab}`} className="fade-in">
+                    {renderChart()}
+                  </div>
                 ) : (
                   <div style={{
                     display: "flex", flexDirection: "column", alignItems: "center",
-                    justifyContent: "center", padding: 80, gap: 16,
+                    justifyContent: "center", padding: "80px 20px", gap: 20,
+                    animation: "fade-in var(--dur-slow) var(--ease-out)",
                   }}>
                     <div style={{
-                      fontFamily: "var(--font-display)", fontSize: 56, fontWeight: 200,
+                      fontFamily: "var(--font-display)", fontSize: 64, fontWeight: 200,
                       color: "var(--ink-disabled)", lineHeight: 1,
                     }}>
-                      {activeTab === "bazi" ? "命" : activeTab === "ziwei" ? "微" : activeTab === "astro" ? "☉" : activeTab === "sixyao" ? "卦" : activeTab === "qimen" ? "奇" : "运"}
+                      {activeTab === "bazi" ? "命" : activeTab === "ziwei" ? "微" : activeTab === "astro" ? "☉" : activeTab === "sixyao" ? "卦" : "奇"}
                     </div>
-                    <button
-                      className="btn"
-                      onClick={() => runTool(activeTab)}
-                      style={{ padding: "10px 24px", fontSize: 14 }}
-                    >
+                    <button className="btn" onClick={() => runTool(activeTab)}>
                       {currentTab.btnLabel}
                     </button>
                   </div>
@@ -303,28 +311,29 @@ function App() {
           ) : (
             <div style={{
               display: "flex", flexDirection: "column", alignItems: "center",
-              justifyContent: "center", height: "100%", gap: 20, padding: 40,
+              justifyContent: "center", height: "100%", gap: 24, padding: 48,
+              animation: "fade-in var(--dur-slow) var(--ease-out)",
             }}>
               <div style={{
-                fontFamily: "var(--font-display)", fontSize: 56, fontWeight: 200,
+                fontFamily: "var(--font-display)", fontSize: 64, fontWeight: 200,
                 color: "var(--ink-disabled)", lineHeight: 1,
               }}>
                 档
               </div>
-              <div style={{ textAlign: "center", maxWidth: 320 }}>
-                <div style={{ fontSize: 15, color: "var(--ink-secondary)", marginBottom: 8 }}>
+              <div style={{ textAlign: "center", maxWidth: 340 }}>
+                <div style={{ fontSize: 15, color: "var(--ink-secondary)", marginBottom: 10, letterSpacing: 0.2 }}>
                   {store.profiles.length > 0 ? "选择左侧档案以开始" : "还没有档案"}
                 </div>
                 {store.profiles.length === 0 && (
-                  <div style={{ fontSize: 12, color: "var(--ink-tertiary)", lineHeight: 1.6, marginBottom: 20 }}>
-                    档案是一个人的生辰信息,用于排八字、紫微、西占等命盘。
-                    所有数据保存在本地浏览器,不上传。
-                  </div>
-                )}
-                {store.profiles.length === 0 && (
-                  <button className="btn" onClick={store.openNewProfile} style={{ padding: "10px 24px" }}>
-                    创建第一个档案
-                  </button>
+                  <>
+                    <div style={{ fontSize: 13, color: "var(--ink-tertiary)", lineHeight: 1.7, marginBottom: 24 }}>
+                      档案是一个人的生辰信息,用于排八字、紫微、西占等命盘。
+                      所有数据保存在本地浏览器,不上传。
+                    </div>
+                    <button className="btn" onClick={store.openNewProfile}>
+                      创建第一个档案
+                    </button>
+                  </>
                 )}
               </div>
             </div>
@@ -332,24 +341,10 @@ function App() {
         </div>
       </div>
 
-      {/* Wizard overlay */}
+      {/* Wizard */}
       {showWizard && (
-        <div
-          onClick={() => store.closeProfileDraft()}
-          style={{
-            position: "fixed", inset: 0, zIndex: 90,
-            background: "rgba(0,0,0,0.3)", backdropFilter: "blur(4px)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-          }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              background: "var(--bg-base)", borderRadius: "var(--r-lg)",
-              width: 480, maxWidth: "90vw", maxHeight: "90vh", overflowY: "auto",
-              boxShadow: "0 20px 40px rgba(0,0,0,0.15)",
-            }}
-          >
+        <div className="overlay" onClick={() => store.closeProfileDraft()}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 480 }}>
             <ProfileForm
               initial={profileDraft && profileDraft.id ? profileDraft : undefined}
               onDone={() => store.closeProfileDraft()}
