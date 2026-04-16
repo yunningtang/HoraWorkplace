@@ -6,17 +6,19 @@ import ProfileManager from "./components/profile/ProfileManager";
 import BaziBoard from "./components/charts/BaziBoard";
 import InteractionDiagram from "./components/charts/InteractionDiagram";
 import ZiweiBoard from "./components/charts/ZiweiBoard";
-
+import AstroChart from "./components/charts/AstroChart";
 import SixYaoView from "./components/charts/SixYaoView";
 import QimenGrid from "./components/charts/QimenGrid";
-
+import DecennialTimeline from "./components/charts/DecennialTimeline";
 import type { BaziBirthResponse } from "./types/horosa";
 
 const TABS: { key: TabKey; label: string; tool: string; btnLabel: string }[] = [
   { key: "bazi", label: "八字排盘", tool: "horosa_cn_bazi_birth", btnLabel: "排八字" },
   { key: "ziwei", label: "紫微斗数", tool: "horosa_cn_ziwei_birth", btnLabel: "排紫微" },
+  { key: "astro", label: "西占星盘", tool: "horosa_astro_chart", btnLabel: "排星盘" },
   { key: "sixyao", label: "六爻起卦", tool: "horosa_cn_sixyao", btnLabel: "起卦" },
   { key: "qimen", label: "奇门遁甲", tool: "horosa_cn_qimen", btnLabel: "排奇门" },
+  { key: "predict", label: "大运流年", tool: "horosa_predict_decennials", btnLabel: "排大运" },
 ];
 
 function App() {
@@ -53,16 +55,19 @@ function App() {
           store.setBaziData((typed as unknown as BaziBirthResponse).data?.bazi ?? null);
           break;
         case "ziwei":
-          // ziwei data has chart.houses - pass the whole data.chart level
           store.setZiweiData(typedData ?? typed);
           break;
+        case "astro":
+          store.setAstroData(typedData ?? typed);
+          break;
         case "sixyao":
-          // sixyao data has lines, current_code, descriptions at data level
           store.setSixyaoData(typedData ?? typed);
           break;
         case "qimen":
-          // qimen data has pan.cells at data level
           store.setQimenData(typedData ?? typed);
+          break;
+        case "predict":
+          store.setPredictData(typedData ?? typed);
           break;
       }
     } catch (e) {
@@ -76,9 +81,8 @@ function App() {
 
   const hasData = (() => {
     const map: Record<TabKey, unknown> = {
-      bazi: store.baziData, ziwei: store.ziweiData,
-      sixyao: store.sixyaoData, qimen: store.qimenData,
-      astro: null, predict: null,
+      bazi: store.baziData, ziwei: store.ziweiData, astro: store.astroData,
+      sixyao: store.sixyaoData, qimen: store.qimenData, predict: store.predictData,
     };
     return !!map[activeTab];
   })();
@@ -89,12 +93,14 @@ function App() {
         return store.baziData ? <><BaziBoard data={store.baziData} /><InteractionDiagram data={store.baziData} /></> : null;
       case "ziwei":
         return store.ziweiData ? <ZiweiBoard data={store.ziweiData} /> : null;
-
+      case "astro":
+        return store.astroData ? <AstroChart data={store.astroData} /> : null;
       case "sixyao":
         return store.sixyaoData ? <SixYaoView data={store.sixyaoData} /> : null;
       case "qimen":
         return store.qimenData ? <QimenGrid data={store.qimenData} /> : null;
-
+      case "predict":
+        return store.predictData ? <DecennialTimeline data={store.predictData} /> : null;
     }
   }
 
@@ -214,7 +220,7 @@ function App() {
                 fontFamily: "var(--font-display)", fontSize: 48, fontWeight: 200,
                 color: "var(--ink-disabled)", lineHeight: 1,
               }}>
-                {activeTab === "bazi" ? "命" : activeTab === "ziwei" ? "微" : activeTab === "sixyao" ? "卦" : "奇"}
+                {activeTab === "bazi" ? "命" : activeTab === "ziwei" ? "微" : activeTab === "astro" ? "☉" : activeTab === "sixyao" ? "卦" : activeTab === "qimen" ? "奇" : "运"}
               </div>
               <span style={{ fontSize: 13, color: "var(--ink-disabled)", letterSpacing: 0.5 }}>
                 点击上方「{currentTab.btnLabel}」

@@ -1,115 +1,116 @@
 # Known Issues
 
-Running log of horosa-stack problems we've hit, with evidence and next steps.
-Tracked here (instead of GitHub Issues) so the repro artifacts live next to the fix.
+Running log of horosa-stack problems we've hit, with evidence and fixes.
 
 ---
 
-## #1 — `astro_chart` / `predict_decennials` 返回 "param error"
+## #1 — `astro_chart` / `predict_decennials` "param error" ✅ 已修复
 
-**Status:** open · affects horosa-skill v0.3.0 runtime
-**Discovered:** 2026-04-15
-**Impact:** 西占星盘、十年大运、所有经过 Python chart 服务 (8899) 的端点全部失败
+**Status:** **Resolved** (2026-04-16) · affects horosa-skill v0.3.0 runtime
+**Root cause:** pyswisseph 2.10.03 `set_ephe_path` 是**线程局部**的
+**Fix:** 给 `webchartsrv.py` 加 CherryPy `before_handler` hook,每个请求入口重新调用 setPath
 
-### 症状
+### 排查过程
 
-从 MCP 调 `horosa_astro_chart` / `horosa_predict_decennials` 时,返回:
-```json
-{
-  "ok": false,
-  "error": {
-    "code": "tool.backend_param_error",
-    "message": "Horosa backend rejected the birth parameters.",
-    "details": {
-      "status_code": 500,
-      "body": "{\"ResultCode\": 200001, \"Result\": \"param error\"}"
-    }
-  }
-}
-```
+最初以为是参数格式 / CherryPy 版本问题,实际追到真正根因:
 
-MCP skill 提示的 "用 `+08:00` 时区、`31n14` 紧凑坐标" 都已经做了,仍然失败。
+1. **假线索 1 — "param error"**
+   MCP 返回 `Horosa backend rejected the birth parameters`,提示检查时区/坐标格式。但格式都对。
 
-### 根因 (不是参数格式)
+2. **假线索 2 — CherryPy `'WebChartSrv' object is not callable`**
+   `astropy.stderr.log` 里看到 CherryPy `inspect.getfullargspec` 报错,以为是 CherryPy 版本不兼容。实际是用 GET 请求探测根端点触发的无关噪音,不是 MCP 调用真实错误。
 
-问题**不在参数**,在 Python chart 服务 (port 8899) 的 CherryPy 路由。真实异常被吞掉了 —
-[`webchartsrv.py`](file:///C:/Users/tangy/AppData/Local/Horosa/runtime/current/Horosa-Web/astropy/websrv/webchartsrv.py) 的 `index()` 方法:
+3. **真线索 — 查 POST 请求对应的 stderr**
+   当发一个有 JSON body 的 POST 请求后,日志里出现:
+   ```
+   swisseph.Error: swisseph.calc_ut: SwissEph file 'seas_18.se1' not found in PATH '\sweph\ephe\'
+   ```
+   路径 `\sweph\ephe\` 是 SwissEph 的**默认 fallback 路径**,说明 `set_ephe_path()` 从未在当前调用线程被调用过。
+
+4. **确认是线程局部**
+   ```python
+   # Main thread — works
+   PerChart({...})   # MAIN OK
+
+   # Worker thread — fails
+   threading.Thread(target=lambda: PerChart({...})).start()
+   # WORKER ERR: SwissEph file 'seas_18.se1' not found in PATH '\sweph\ephe\'
+   ```
+   Warmup 在主线程成功,但 CherryPy worker thread pool 里的线程没走过 `flatlib.ephem.__init__`,`set_ephe_path` 从未在那些线程上调用。
+
+### 修复
+
+在 [`webchartsrv.py`](docs/known-issues/webchartsrv-patched.py) 里加:
 
 ```python
-except:
-    traceback.print_exc()
-    obj = {'err': 'param error'}   # ← 把所有异常都转成通用 param error
-    return jsonpickle.encode(obj, unpicklable=False)
+# 顶部 import 后
+import flatlib
+from flatlib.ephem import swe as _flatlib_swe
+_SWEFILES_PATH = flatlib.PATH_RES + 'swefiles'
+
+def _ensure_ephe_path():
+    try:
+        _flatlib_swe.setPath(_SWEFILES_PATH)
+    except Exception:
+        pass
 ```
 
-查看 `astropy.stderr.log` (完整内容见 [docs/known-issues/cherrypy-error.log](docs/known-issues/cherrypy-error.log)) 可以看到真实异常:
+然后在 `__main__` 块里挂 CherryPy 全局 hook:
 
-```
-TypeError: 'WebChartSrv' object is not callable
-
-File "cherrypy/_cpdispatch.py", line 88, in test_callable_spec
-    (args, varargs, varkw, defaults) = getargspec(callable)
-File "cherrypy/_cpdispatch.py", line 209, in getargspec
-    return inspect.getfullargspec(callable)[:4]
-TypeError: unsupported callable
+```python
+cherrypy.tools.ensure_ephe = cherrypy.Tool(
+    'before_handler', lambda: _ensure_ephe_path()
+)
+cherrypy.config.update({'tools.ensure_ephe.on': True})
 ```
 
-CherryPy 的 dispatcher 调 `inspect.getfullargspec()` 失败。这是 **CherryPy 版本和 runtime Python 版本不兼容** — `inspect.getfullargspec` 在较新 Python 里对某些对象行为变了,旧版 CherryPy 没处理。
+这样**所有**挂在 8899 的端点(`/chart`, `/predict/*`, `/india/*`, `/germany/*`, `/jieqi/*` 等)都在请求入口自动 setPath,线程池里哪个 worker 接到请求都能正确初始化。
 
-### 影响矩阵
+### 验证
 
-| 端点 | 路径 | 状态 |
-|---|---|---|
-| `/bazi/birth` | 纯 Java 9999 | ✅ |
-| `/ziwei/birth` | 纯 Java 9999 | ✅ |
-| `/sixyao` | 纯 Java 9999 | ✅ |
-| `/qimen` | 纯 Java 9999 | ✅ |
-| `/chart` | Java → Python 8899 | ❌ |
-| `/chart13` | Java → Python 8899 | ❌ |
-| `/hellen_chart` | Java → Python 8899 | ❌ |
-| `/guolao_chart` | Java → Python 8899 | ❌ |
-| `/predict/*` | Java → Python 8899 | ❌ |
-| `/germany` | Java → Python 8899 | ❌ |
+```bash
+# 之前
+curl ... /chart                    # ← {"err": "param error"}
 
-即所有**西占系**工具都挂,**中国术数**全部正常。
+# patch 之后
+curl ... /chart                    # ← 完整星盘 JSON (objects/houses/aspects/...)
+curl ... /predict/decennials       # ← 完整 timeline 数据
+```
 
-### 修复方向
+MCP 侧两个工具都恢复 `ok: true`,horosa-chat 的「西占星盘」和「大运流年」两个 tab 重新上架。
 
-按优先级:
+### 应用补丁
 
-1. **升级 runtime 的 CherryPy** (成本最低) — 从 runtime Python site-packages 升级到 CherryPy ≥ 18.8,这个版本修了 `inspect.getfullargspec` 的兼容性问题。具体命令:
-   ```powershell
-   # Runtime Python
-   $py = "C:\Users\tangy\AppData\Local\Horosa\runtime\current\runtime\windows\python\python.exe"
-   & $py -m pip install --upgrade cherrypy
-   ```
-   然后重启 runtime (`uv run horosa-skill doctor` → 确认 `python_chart: reachable`)。
+完整 patched 版本见 [docs/known-issues/webchartsrv-patched.py](docs/known-issues/webchartsrv-patched.py)。
 
-2. **降级 runtime Python** (不推荐) — 回到 < 3.11 的 Python,保持当前 CherryPy 版本可用。但会影响 MCP skill 本身依赖。
+覆盖到 runtime:
+```powershell
+Copy-Item -Force `
+  "d:\Code\Hora\docs\known-issues\webchartsrv-patched.py" `
+  "C:\Users\tangy\AppData\Local\Horosa\runtime\current\Horosa-Web\astropy\websrv\webchartsrv.py"
 
-3. **修 horosa-skill 的错误处理** — `webchartsrv.py` 的 bare `except` 应该至少透传真实异常类型到响应里,否则这类 bug 永远看不到根因。建议向上游 horosa-skill 提 PR。
+# 重启 chart 服务
+Get-Process python | Where-Object {$_.Id -eq (Get-Content "...\.horosa_py.pid")} | Stop-Process
+& "C:\Users\tangy\AppData\Local\Horosa\runtime\current\Horosa-Web\start_horosa_local.ps1"
+```
 
-### 复现步骤
+### 应向上游报的改进
 
-1. Runtime 已装:`uv --directory d:/Code/horosa-skill/horosa-skill run horosa-skill doctor` 应返回 `status: ready`
-2. 运行 [repro 脚本](docs/known-issues/repro-chart-bug.py):
-   ```bash
-   cd d:/Code/horosa-skill/horosa-skill
-   cp d:/Code/Hora/docs/known-issues/repro-chart-bug.py .
-   uv run python repro-chart-bug.py
-   ```
-3. 查看 runtime stderr 日志确认真实异常:
-   ```
-   C:\Users\tangy\AppData\Local\Horosa\runtime\current\Horosa-Web\.horosa-local-logs\<最新时间戳>\astropy.stderr.log
-   ```
+1. **pyswisseph 的 `set_ephe_path` 应该是 process-global 而不是 thread-local** —
+   这是 C 库层面的设计问题,需要给 pyswisseph 提 upstream issue。
+2. **horosa-skill 的 runtime 应在启动时自动 patch** — 目前的
+   `webchartsrv.py` 假设了 `set_ephe_path` 全局生效,在 pyswisseph 2.10.x 线程模型下失效。
+3. **`webchartsrv.py` 的 bare `except`** — 吞掉真实异常只返回 `{"err": "param error"}`,
+   这个 bug 的诊断走了不少弯路。建议上游 PR 改成
+   `return {"err": str(e), "type": type(e).__name__}`,或至少 log 到专门位置。
 
-### 前端临时处理 (horosa-chat)
+### 日志位置
 
-已在 [App.tsx](horosa-chat/src/App.tsx) 的 `TABS` 常量中移除这两个 tab:
-- ~~`horosa_astro_chart` (西占星盘)~~
-- ~~`horosa_predict_decennials` (大运流年)~~
+```
+C:\Users\tangy\AppData\Local\Horosa\runtime\current\Horosa-Web\.horosa-local-logs\<latest>\astropy.stderr.log
+```
 
-对应的 React 组件 (`AstroChart.tsx` / `DecennialTimeline.tsx`) 和 Zustand 状态
-(`astroData` / `predictData`) 暂时保留,后端修复后取消 `TABS` 的注释即可恢复。
+初始真实 traceback 存档: [docs/known-issues/cherrypy-error.log](docs/known-issues/cherrypy-error.log)
+(其中大部分是 GET 探测引发的无关 CherryPy 报错,关键是最末尾的 `swisseph.Error`)
 
 ---
