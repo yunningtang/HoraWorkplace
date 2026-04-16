@@ -67,11 +67,12 @@ interface Props {
   location: string; setLocation: (v: string) => void;
   onBack: () => void;
   onSubmit: () => void;
+  submitLabel?: string;
 }
 
 export default function LocationStep({
   lat, setLat, lon, setLon, zone, setZone, location, setLocation,
-  onBack, onSubmit,
+  onBack, onSubmit, submitLabel = "创建档案",
 }: Props) {
   const [query, setQuery] = useState("");
   const [showManual, setShowManual] = useState(false);
@@ -222,7 +223,7 @@ export default function LocationStep({
           onClick={onSubmit}
           disabled={!location && !lat}
         >
-          创建档案
+          {submitLabel}
         </button>
       </div>
     </div>

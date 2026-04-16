@@ -1,20 +1,15 @@
 /**
- * ProfileManager — sidebar profile list
- * Shows all saved profiles with switch/edit/delete.
+ * ProfileManager — sidebar profile list with edit/delete.
  */
 import { useAppStore, type Profile } from "../../stores/appStore";
 
-function ProfileCard({ profile, isActive, onSelect }: {
-  profile: Profile;
-  isActive: boolean;
-  onSelect: () => void;
-}) {
-  const removeProfile = useAppStore((s) => s.removeProfile);
+function ProfileCard({ profile, isActive }: { profile: Profile; isActive: boolean }) {
+  const { setActiveProfile, openEditProfile, askDelete } = useAppStore();
   const genderIcon = profile.gender === "M" ? "♂" : profile.gender === "F" ? "♀" : "⚥";
 
   return (
     <div
-      onClick={onSelect}
+      onClick={() => setActiveProfile(profile.id)}
       style={{
         padding: "10px 12px",
         background: isActive ? "rgba(0,0,0,0.04)" : "transparent",
@@ -24,11 +19,11 @@ function ProfileCard({ profile, isActive, onSelect }: {
         display: "flex",
         alignItems: "center",
         gap: 10,
+        position: "relative",
       }}
       onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = "rgba(0,0,0,0.02)"; }}
       onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = "transparent"; }}
     >
-      {/* Avatar circle */}
       <div style={{
         width: 32, height: 32, borderRadius: "50%",
         background: isActive ? "var(--ink-primary)" : "var(--bg-warm)",
@@ -57,72 +52,89 @@ function ProfileCard({ profile, isActive, onSelect }: {
         </div>
       </div>
 
-      {/* Delete */}
-      <button
-        onClick={(e) => { e.stopPropagation(); removeProfile(profile.id); }}
-        style={{
-          width: 20, height: 20, borderRadius: "50%",
-          border: "none", background: "transparent",
-          color: "var(--ink-disabled)", fontSize: 14,
-          cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-          opacity: 0.5, transition: "opacity 0.15s",
-        }}
-        onMouseEnter={(e) => { e.currentTarget.style.opacity = "1"; }}
-        onMouseLeave={(e) => { e.currentTarget.style.opacity = "0.5"; }}
-        title="删除"
-      >
-        ×
-      </button>
+      {/* Hover actions */}
+      <div className="profile-actions" style={{
+        display: "flex", gap: 2, opacity: 0, transition: "opacity 0.15s",
+      }}>
+        <button
+          onClick={(e) => { e.stopPropagation(); openEditProfile(profile); }}
+          style={{
+            width: 22, height: 22, borderRadius: 4,
+            border: "none", background: "transparent",
+            color: "var(--ink-tertiary)", fontSize: 12,
+            cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-warm)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+          title="编辑"
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+          </svg>
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); askDelete(profile); }}
+          style={{
+            width: 22, height: 22, borderRadius: 4,
+            border: "none", background: "transparent",
+            color: "var(--ink-tertiary)", fontSize: 14,
+            cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = "var(--el-fire-bg, #fdf0f0)"; e.currentTarget.style.color = "var(--el-fire)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--ink-tertiary)"; }}
+          title="删除"
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14z" />
+          </svg>
+        </button>
+      </div>
+
+      <style>{`
+        .profile-actions { }
+        div:hover > .profile-actions { opacity: 1; }
+      `}</style>
     </div>
   );
 }
 
-export default function ProfileManager({ onNewProfile }: { onNewProfile: () => void }) {
-  const { profiles, activeProfile, setActiveProfile } = useAppStore();
+export default function ProfileManager() {
+  const { profiles, activeProfileId, openNewProfile } = useAppStore();
 
   return (
     <div>
-      {/* Header */}
       <div style={{
         padding: "0 16px 8px", display: "flex", alignItems: "center", justifyContent: "space-between",
       }}>
         <span style={{ fontSize: 11, fontWeight: 600, color: "var(--ink-disabled)", letterSpacing: 1 }}>
-          档案
+          档案 · {profiles.length}
         </span>
         <button
-          onClick={onNewProfile}
+          onClick={openNewProfile}
           style={{
-            width: 20, height: 20, borderRadius: "50%",
-            border: "none", background: "var(--bg-warm)",
-            color: "var(--ink-tertiary)", fontSize: 16, lineHeight: 1,
+            width: 22, height: 22, borderRadius: 4,
+            border: "none", background: "var(--ink-primary)",
+            color: "var(--bg-base)", fontSize: 16, lineHeight: 1,
             cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-            transition: "all 0.15s ease",
+            transition: "opacity 0.15s",
           }}
-          onMouseEnter={(e) => { e.currentTarget.style.background = "var(--ink-primary)"; e.currentTarget.style.color = "var(--bg-base)"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = "var(--bg-warm)"; e.currentTarget.style.color = "var(--ink-tertiary)"; }}
+          onMouseEnter={(e) => { e.currentTarget.style.opacity = "0.8"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.opacity = "1"; }}
           title="新建档案"
         >
           +
         </button>
       </div>
 
-      {/* List */}
       {profiles.length === 0 ? (
-        <div style={{
-          padding: "16px", textAlign: "center",
-          fontSize: 12, color: "var(--ink-disabled)",
-        }}>
+        <div style={{ padding: 16, textAlign: "center", fontSize: 12, color: "var(--ink-disabled)" }}>
           暂无档案
         </div>
       ) : (
-        <div>
+        <div style={{ maxHeight: 400, overflowY: "auto" }}>
           {profiles.map((p) => (
-            <ProfileCard
-              key={p.id}
-              profile={p}
-              isActive={activeProfile?.id === p.id}
-              onSelect={() => setActiveProfile(p)}
-            />
+            <ProfileCard key={p.id} profile={p} isActive={activeProfileId === p.id} />
           ))}
         </div>
       )}
